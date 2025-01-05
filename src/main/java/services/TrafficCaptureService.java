@@ -71,6 +71,7 @@ public class TrafficCaptureService {
     }
 
 
+
     // Function to write packet details to CSV using the PacketEntity class and toRaw method
     private void writePacketToCSV(Packet packet) {
         String sourceIP = "Unknown";
@@ -130,4 +131,35 @@ public class TrafficCaptureService {
             e.printStackTrace();
         }
     }
+    private int tcpCount = 0;
+    private int udpCount = 0;
+    private int totalPacketsCaptured = 0;
+    private long totalDataSize = 0;
+    private boolean capturing = false;
+
+    public boolean isCapturing() {
+        return capturing;
+    }
+
+    public int getTcpCount() {
+        return tcpCount;
+    }
+
+    public int getUdpCount() {
+        return udpCount;
+    }
+
+    public int getTotalPacketsCaptured() {
+        return totalPacketsCaptured;
+    }
+
+    public long getTotalDataSize() {
+        return totalDataSize;
+    }
+
+
+
+
+
+
 }

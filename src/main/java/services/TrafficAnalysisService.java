@@ -15,7 +15,7 @@ public class TrafficAnalysisService {
     private Map<String, Integer> sourcePortCount;
     private Map<String, Integer> destinationPortCount;
     private List<Integer> packetSizes;
-
+    private List<PacketEntity> packets;
     public TrafficAnalysisService() {
         this.totalPackets = 0;
         this.totalTrafficVolume = 0;
@@ -30,6 +30,7 @@ public class TrafficAnalysisService {
     // Method to analyze a captured packet and update statistics
     public void analyzePacket(PacketEntity packetEntity) {
         // Update total packet count and traffic volume
+        packets.add(packetEntity);
         totalPackets++;
         totalTrafficVolume += packetEntity.getPacketSize();
 
