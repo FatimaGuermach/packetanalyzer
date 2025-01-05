@@ -44,10 +44,10 @@ public class TrafficAnalysisService {
                 destinationIPCount.getOrDefault(packetEntity.getDestinationIP(), 0) + 1);
 
         // Update source and destination port counts
-        sourcePortCount.put(packetEntity.getSourcePort(),
-                sourcePortCount.getOrDefault(packetEntity.getSourcePort(), 0) + 1);
-        destinationPortCount.put(packetEntity.getDestinationPort(),
-                destinationPortCount.getOrDefault(packetEntity.getDestinationPort(), 0) + 1);
+//        sourcePortCount.put(packetEntity.getSourcePort(),
+//                sourcePortCount.getOrDefault(packetEntity.getSourcePort(), 0) + 1);
+//        destinationPortCount.put(packetEntity.getDestinationPort(),
+//                destinationPortCount.getOrDefault(packetEntity.getDestinationPort(), 0) + 1);
 
         // Add packet size to the list
         packetSizes.add(packetEntity.getPacketSize());

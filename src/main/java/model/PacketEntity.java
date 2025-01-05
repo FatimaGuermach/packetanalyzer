@@ -6,17 +6,13 @@ public class PacketEntity {
     private int packetSize;
     private String protocol;
     private long timestamp;
-    private String sourcePort;
-    private String destinationPort;
 
-    public PacketEntity(String sourceIP, String destinationIP, int packetSize, String protocol, long timestamp, String sourcePort, String destinationPort) {
+    public PacketEntity(String sourceIP, String destinationIP, int packetSize, String protocol, long timestamp) {
         this.sourceIP = sourceIP;
         this.destinationIP = destinationIP;
         this.packetSize = packetSize;
         this.protocol = protocol;
         this.timestamp = timestamp;
-        this.sourcePort = sourcePort;
-        this.destinationPort = destinationPort;
     }
 
     public String getSourceIP() { return sourceIP; }
@@ -24,16 +20,14 @@ public class PacketEntity {
     public int getPacketSize() { return packetSize; }
     public String getProtocol() { return protocol; }
     public long getTimestamp() { return timestamp; }
-    public String getSourcePort() { return sourcePort; }
-    public String getDestinationPort() { return destinationPort; }
 
-    // Convert to raw CSV format
+    // Function to return packet data as a raw comma-separated string
     public String toRaw() {
-        return sourceIP + "," + destinationIP + "," + packetSize + "," + protocol + "," + sourcePort + "," + destinationPort + "," + timestamp;
+        return sourceIP + "," + destinationIP + "," + packetSize + "," + protocol + "," + timestamp;
     }
 
     @Override
     public String toString() {
-        return "Packet from " + sourceIP + " to " + destinationIP + " size: " + packetSize + " bytes, protocol: " + protocol + ", source port: " + sourcePort + ", destination port: " + destinationPort + ", timestamp: " + timestamp;
+        return "Packet from " + sourceIP + " to " + destinationIP + " size: " + packetSize + " bytes, protocol: " + protocol + ", timestamp: " + timestamp;
     }
 }
