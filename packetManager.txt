@@ -1,0 +1,48 @@
+-- Script de création de la base de données packetManager
+
+CREATE DATABASE packetManager;
+
+USE packetManager;
+
+-- Table Packets
+CREATE TABLE Packets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_ip VARCHAR(45) NOT NULL,
+    destination_ip VARCHAR(45) NOT NULL,
+    packet_size INT NOT NULL,
+    protocol VARCHAR(10) NOT NULL,
+    source_port INT,
+    destination_port INT,
+    timestamp DATETIME NOT NULL
+);
+
+-- Table Logs
+CREATE TABLE Logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    launch_time DATETIME NOT NULL
+);
+
+-- Table Threats
+CREATE TABLE Threats (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    description VARCHAR(255) NOT NULL,
+    threat_level ENUM('Low', 'Medium', 'High') NOT NULL
+);
+
+-- Table d'association Threat_Packets
+CREATE TABLE Threat_Packets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    threat_id INT NOT NULL,
+    packet_id INT NOT NULL,
+    FOREIGN KEY (threat_id) REFERENCES Threats(id) ON DELETE CASCADE,
+    FOREIGN KEY (packet_id) REFERENCES Packets(id) ON DELETE CASCADE
+);
+
+-- Table Bloqués (Blocked_Packets)
+CREATE TABLE Blocked_Packets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    packet_id INT NOT NULL,
+    block_reason VARCHAR(255),
+    blocked_at DATETIME NOT NULL,
+    FOREIGN KEY (packet_id) REFERENCES Packets(id) ON DELETE CASCADE
+);
