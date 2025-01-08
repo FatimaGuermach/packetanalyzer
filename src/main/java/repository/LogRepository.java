@@ -35,6 +35,20 @@ public class LogRepository {
         return logs;
     }
 
+    public int getCurrentLogId() throws SQLException {
+        String query = "SELECT id FROM Logs ORDER BY launch_time DESC LIMIT 1";
+
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query);
+             ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                return resultSet.getInt("id");
+            } else {
+                throw new SQLException("No logs found in the database.");
+            }
+        }
+    }
+
     private LogEntity mapToLogEntity(ResultSet resultSet) throws SQLException {
         int id = resultSet.getInt("id");
         LocalDateTime launchTime = resultSet.getTimestamp("launch_time").toLocalDateTime();
