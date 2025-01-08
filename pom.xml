@@ -65,6 +65,11 @@
                 <artifactId>javafx-fxml</artifactId>
                 <version>23</version>
             </dependency>
+            <dependency>
+                <groupId>com.itextpdf</groupId>
+                <artifactId>itextpdf</artifactId>
+                <version>5.5.9</version>
+            </dependency>
 
     </dependencies>
 
