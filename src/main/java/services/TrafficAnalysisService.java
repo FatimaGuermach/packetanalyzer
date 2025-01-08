@@ -25,6 +25,7 @@ public class TrafficAnalysisService {
         this.sourcePortCount = new HashMap<>();
         this.destinationPortCount = new HashMap<>();
         this.packetSizes = new ArrayList<>();
+        this.packets = new ArrayList<>();
     }
 
     // Method to analyze a captured packet and update statistics
@@ -124,7 +125,7 @@ public class TrafficAnalysisService {
         System.out.println("Average Packet Size: " + getAveragePacketSize());
         System.out.println("Smallest Packet Size: " + getSmallestPacketSize());
         System.out.println("Largest Packet Size: " + getLargestPacketSize());
-        
+
         System.out.println("Protocol Distribution:");
         protocolDistribution.forEach((protocol, count) ->
                 System.out.println(protocol + ": " + count + " packets"));
