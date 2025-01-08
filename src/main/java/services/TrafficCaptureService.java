@@ -43,14 +43,10 @@ public class TrafficCaptureService {
     public void startCapture() {
         capturing = true;
 
-        // Créer un nouveau log pour cette session
-        LogEntity logEntity = new LogEntity(0, LocalDateTime.now());
         try {
-            logRepository.createLog(logEntity);
-            currentLogId = logEntity.getId();
+            currentLogId = logRepository.getCurrentLogId();
         } catch (SQLException e) {
-            e.printStackTrace();
-            return;
+            throw new RuntimeException("Failed to retrieve current log ID", e);
         }
 
         new Thread(() -> {

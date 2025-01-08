@@ -1,6 +1,9 @@
+package App;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
@@ -9,8 +12,10 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import model.LogEntity;
 import model.PacketEntity;
 import model.ThreatEntity;
+import repository.DatabaseManager;
 import repository.LogRepository;
 import repository.PacketRepository;
 import repository.ThreatRepository;
@@ -18,9 +23,12 @@ import services.PDFReportService;
 import services.TrafficAnalysisService;
 import services.TrafficCaptureService;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
+
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class Main extends Application {
@@ -34,13 +42,6 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        // Connexion à la base de données
-        Connection connection;
-        try {
-            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/traffic_db", "username", "password");
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to connect to the database", e);
-        }
 
         // Initialisation des repositories
         PacketRepository packetRepository = new PacketRepository();
@@ -50,13 +51,19 @@ public class Main extends Application {
         // Initialisation des services
         trafficCaptureService = new TrafficCaptureService(packetRepository, logRepository);
 
+        // Créer un nouveau log pour cette session
+
         // Obtenir le logId pour la session en cours
         int currentLogId;
+        LogEntity logEntity = new LogEntity(0, LocalDateTime.now());
         try {
-            currentLogId = logRepository.getCurrentLogId();
+            logRepository.createLog(logEntity);
+            currentLogId = logEntity.getId();
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to retrieve current log ID", e);
+            e.printStackTrace();
+            return;
         }
+        
         trafficAnalysisService = new TrafficAnalysisService(packetRepository, threatRepository, currentLogId);
 
         // Boutons
@@ -112,6 +119,9 @@ public class Main extends Application {
         primaryStage.setTitle("Traffic Capture with Analysis Dashboard");
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        // Assurez-vous de fermer la connexion à la base de données lorsque l'application se termine
+        primaryStage.setOnCloseRequest(event -> DatabaseManager.closeConnection());
     }
 
     private void setupTables() {
@@ -169,12 +179,41 @@ public class Main extends Application {
     }
 
     private void generateReport() {
-        WritableImage graphImage = barChart.snapshot(null, null);
+        WritableImage graphImage = barChart.snapshot(new SnapshotParameters(), null);
+        File graphFile = new File("graph.png");
+        try {
+            ImageIO.write(toBufferedImage(graphImage), "png", graphFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
         List<PacketEntity> recurrentPackets = recurrentPacketsTable.getItems();
         List<ThreatEntity> suspiciousPackets = suspiciousPacketsTable.getItems();
 
         PDFReportService reportService = new PDFReportService();
-        reportService.generateReportWithGraph("traffic_report.pdf", recurrentPackets, suspiciousPackets, graphImage);
+        reportService.generateReportWithGraph("traffic_report.pdf", recurrentPackets, suspiciousPackets, graphFile);
+    }
+
+    /**
+     * Converts a WritableImage to a BufferedImage for saving purposes.
+     */
+    private java.awt.image.BufferedImage toBufferedImage(WritableImage img) {
+        int width = (int) img.getWidth();
+        int height = (int) img.getHeight();
+
+        java.awt.image.BufferedImage bufferedImage = new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                javafx.scene.paint.Color fxColor = img.getPixelReader().getColor(x, y);
+                int color = ((int) (fxColor.getOpacity() * 255) << 24) |
+                        ((int) (fxColor.getRed() * 255) << 16) |
+                        ((int) (fxColor.getGreen() * 255) << 8) |
+                        ((int) (fxColor.getBlue() * 255));
+                bufferedImage.setRGB(x, y, color);
+            }
+        }
+        return bufferedImage;
     }
 
     public static void main(String[] args) {
