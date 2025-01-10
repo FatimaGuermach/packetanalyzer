@@ -34,6 +34,24 @@ public class ThreatRepository {
         return threats;
     }
 
+    public List<ThreatEntity> findThreatsByLogId(int logId) throws SQLException {
+        String sql = "SELECT t.id, t.threat_level FROM Threats t " +
+                "JOIN Threat_Packets tp ON t.id = tp.threat_id " +
+                "JOIN Packets p ON tp.packet_id = p.id " +
+                "WHERE p.log_id = ?";
+        List<ThreatEntity> threats = new ArrayList<>();
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, logId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    threats.add(mapToThreatEntity(resultSet));
+                }
+            }
+        }
+        return threats;
+    }
+
     private ThreatEntity mapToThreatEntity(ResultSet resultSet) throws SQLException {
         int id = resultSet.getInt("id");
         String threatLevel = resultSet.getString("threat_level");

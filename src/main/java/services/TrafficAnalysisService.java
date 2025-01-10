@@ -2,7 +2,9 @@ package services;
 
 import model.PacketEntity;
 import model.ThreatEntity;
+import model.ThreatPacketEntity;
 import repository.PacketRepository;
+import repository.ThreatPacketsRepository;
 import repository.ThreatRepository;
 
 import java.sql.SQLException;
@@ -15,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class TrafficAnalysisService {
     private final PacketRepository packetRepository;
     private final ThreatRepository threatRepository;
+    private final ThreatPacketsRepository threatPacketsRepository;
     private final Map<String, Integer> ipRequestCounts = new HashMap<>();
     private final int currentLogId;
 
@@ -25,22 +28,43 @@ public class TrafficAnalysisService {
     private Thread updateThread;
     private List<PacketEntity> topDestinations = new ArrayList<>();
 
-    public TrafficAnalysisService(PacketRepository packetRepository, ThreatRepository threatRepository, int currentLogId) {
+    public TrafficAnalysisService(PacketRepository packetRepository, ThreatRepository threatRepository, ThreatPacketsRepository threatPacketsRepository, int currentLogId) {
         this.packetRepository = packetRepository;
         this.threatRepository = threatRepository;
+        this.threatPacketsRepository = threatPacketsRepository;
         this.currentLogId = currentLogId;
     }
 
-    /**
-     * Renvoie une copie synchronisée des paquets récurrents.
-     */
-    public synchronized List<PacketEntity> getRecurrentPackets() {
-        return new ArrayList<>(topDestinations);
+    public synchronized List<PacketEntity> getRecurrentPackets(int id) {
+        List<PacketEntity> packets = null;
+        try {
+            packets = packetRepository.findTopDestinations(id);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return packets != null ? packets : List.of(); // Retourne une liste vide si aucun paquet n'est trouvé
     }
 
-    /**
-     * Démarre l'analyse continue dans un sous-thread.
-     */
+    public List<ThreatEntity> getThreats() {
+        List<ThreatEntity> threats = null;
+        try {
+            threats = threatRepository.findAll();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return threats != null ? threats : List.of(); // Retourne une liste vide si aucune menace n'est trouvée
+    }
+
+    public List<ThreatEntity> getThreatsByLogId(int logId) {
+        List<ThreatEntity> threats = null;
+        try {
+            threats = threatRepository.findThreatsByLogId(logId);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return threats != null ? threats : List.of(); // Retourne une liste vide si aucune menace n'est trouvée
+    }
+
     public void startAnalysis() {
         if (running.get()) {
             System.out.println("Analysis already running.");
@@ -51,10 +75,8 @@ public class TrafficAnalysisService {
         updateThread = new Thread(() -> {
             while (running.get()) {
                 try {
-                    // Mettre à jour la liste des top destinations
-                    updateTopDestinations();
-                    // Analyser les paquets de la session
-                    analyzePackets();
+                    updateTopDestinations(); // Mettre à jour la liste des top destinations
+                    analyzePackets(); // Analyser les paquets de la session
                     Thread.sleep(1000); // Mise à jour toutes les secondes
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -66,9 +88,6 @@ public class TrafficAnalysisService {
         updateThread.start();
     }
 
-    /**
-     * Arrête l'analyse continue.
-     */
     public void stopAnalysis() {
         running.set(false);
         if (updateThread != null) {
@@ -76,9 +95,6 @@ public class TrafficAnalysisService {
         }
     }
 
-    /**
-     * Met à jour la liste des destinations les plus fréquentes dans la session actuelle.
-     */
     private synchronized void updateTopDestinations() {
         try {
             topDestinations = packetRepository.findTopDestinations(currentLogId);
@@ -87,9 +103,6 @@ public class TrafficAnalysisService {
         }
     }
 
-    /**
-     * Analyse les paquets de la session et détermine s'ils représentent une menace.
-     */
     private synchronized void analyzePackets() {
         try {
             List<PacketEntity> sessionPackets = packetRepository.findPacketsByLogId(currentLogId);
@@ -104,6 +117,8 @@ public class TrafficAnalysisService {
                     ThreatEntity threat = new ThreatEntity(0, "Suspicious IP: " + sourceIp);
                     try {
                         threatRepository.createThreat(threat);
+                        ThreatPacketEntity threatPacket = new ThreatPacketEntity(0, threat.getId(), packet.getId());
+                        threatPacketsRepository.createThreatPacket(threatPacket);
                         System.out.println("Threat detected for IP: " + sourceIp);
                     } catch (SQLException e) {
                         e.printStackTrace();
@@ -112,17 +127,6 @@ public class TrafficAnalysisService {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-        }
-    }
-
-    /**
-     * Renvoie la liste des menaces détectées.
-     */
-    public List<ThreatEntity> getThreats() {
-        try {
-            return threatRepository.findAll();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
         }
     }
 }

@@ -25,7 +25,7 @@ CREATE TABLE Packets (
 -- Table Threats
 CREATE TABLE Threats (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    threat_level ENUM('Low', 'Medium', 'High') NOT NULL
+    threat_level VARCHAR(255)
 );
 
 -- Table d'association Threat_Packets
@@ -41,6 +41,5 @@ CREATE TABLE Threat_Packets (
 CREATE TABLE Blocked_Packets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     packet_id INT NOT NULL,
-    blocked_at DATETIME NOT NULL,
     FOREIGN KEY (packet_id) REFERENCES Packets(id) ON DELETE CASCADE
 );

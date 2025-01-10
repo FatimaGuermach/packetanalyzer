@@ -2,7 +2,7 @@ package model;
 
 public class ThreatEntity {
     private int id;
-    private String threatLevel; // ENUM('Low', 'Medium', 'High')
+    private String threatLevel;
 
     public ThreatEntity() {}
 

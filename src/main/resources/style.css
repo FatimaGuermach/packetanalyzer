@@ -1,0 +1,9 @@
+.table-cell {
+    -fx-text-fill: black;
+    -fx-font-size: 12pt;
+}
+
+.table-view {
+    -fx-control-inner-background: white;
+    -fx-padding: 10;
+}

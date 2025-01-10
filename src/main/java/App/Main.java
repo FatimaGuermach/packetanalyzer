@@ -2,14 +2,14 @@ package App;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.*;
 import javafx.scene.control.Button;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.ListView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import model.LogEntity;
@@ -19,6 +19,7 @@ import repository.DatabaseManager;
 import repository.LogRepository;
 import repository.PacketRepository;
 import repository.ThreatRepository;
+import repository.ThreatPacketsRepository;
 import services.PDFReportService;
 import services.TrafficAnalysisService;
 import services.TrafficCaptureService;
@@ -26,19 +27,22 @@ import services.TrafficCaptureService;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
-
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class Main extends Application {
 
+    private int currentLogId;
+    private LocalDateTime currentLogTimestamp;
     private TrafficCaptureService trafficCaptureService;
     private TrafficAnalysisService trafficAnalysisService;
     private BarChart<String, Number> barChart;
     private XYChart.Series<String, Number> series;
-    private TableView<PacketEntity> recurrentPacketsTable;
-    private TableView<ThreatEntity> suspiciousPacketsTable;
+    private ListView<PacketEntity> recurrentPacketsListView;
+    private ListView<ThreatEntity> suspiciousPacketsListView;
+    private List<PacketEntity> recurrentPacketsList;
+    private List<ThreatEntity> suspiciousPacketsList;
 
     @Override
     public void start(Stage primaryStage) {
@@ -47,24 +51,22 @@ public class Main extends Application {
         PacketRepository packetRepository = new PacketRepository();
         ThreatRepository threatRepository = new ThreatRepository();
         LogRepository logRepository = new LogRepository();
+        ThreatPacketsRepository threatPacketsRepository = new ThreatPacketsRepository();
 
         // Initialisation des services
         trafficCaptureService = new TrafficCaptureService(packetRepository, logRepository);
 
-        // Créer un nouveau log pour cette session
-
-        // Obtenir le logId pour la session en cours
-        int currentLogId;
         LogEntity logEntity = new LogEntity(0, LocalDateTime.now());
         try {
             logRepository.createLog(logEntity);
             currentLogId = logEntity.getId();
+            currentLogTimestamp = logEntity.getLaunchTime();
         } catch (SQLException e) {
             e.printStackTrace();
             return;
         }
-        
-        trafficAnalysisService = new TrafficAnalysisService(packetRepository, threatRepository, currentLogId);
+
+        trafficAnalysisService = new TrafficAnalysisService(packetRepository, threatRepository, threatPacketsRepository, currentLogId);
 
         // Boutons
         Button startButton = new Button("Start Capture");
@@ -72,7 +74,7 @@ public class Main extends Application {
         Button generateReportButton = new Button("Generate Report");
         stopButton.setDisable(true);
 
-        // BarChart : configuration des axes
+        // BarChart configuration
         CategoryAxis xAxis = new CategoryAxis();
         NumberAxis yAxis = new NumberAxis();
         barChart = new BarChart<>(xAxis, yAxis);
@@ -80,7 +82,6 @@ public class Main extends Application {
         xAxis.setLabel("Packet Type");
         yAxis.setLabel("Count");
 
-        // Initialisation des données du graphe
         series = new XYChart.Series<>();
         series.getData().add(new XYChart.Data<>("IPv4 Packets", 0));
         series.getData().add(new XYChart.Data<>("TCP Packets", 0));
@@ -89,13 +90,15 @@ public class Main extends Application {
         series.getData().add(new XYChart.Data<>("Total Data (KB)", 0));
         barChart.getData().add(series);
 
-        // Initialisation des tableaux
-        setupTables();
+        setupLists();
 
-        // Actions des boutons
+        // Align buttons horizontally
+        HBox buttonBox = new HBox(10, startButton, stopButton, generateReportButton);
+        buttonBox.setAlignment(Pos.CENTER);
+
         startButton.setOnAction(e -> {
             trafficCaptureService.startCapture();
-            trafficAnalysisService.startAnalysis(); // Démarrer l'analyse
+            trafficAnalysisService.startAnalysis();
             startButton.setDisable(true);
             stopButton.setDisable(false);
             startRealTimeUpdates();
@@ -103,56 +106,36 @@ public class Main extends Application {
 
         stopButton.setOnAction(e -> {
             trafficCaptureService.stopCapture();
-            trafficAnalysisService.stopAnalysis(); // Arrêter l'analyse
+            trafficAnalysisService.stopAnalysis();
             startButton.setDisable(false);
             stopButton.setDisable(true);
         });
 
         generateReportButton.setOnAction(e -> generateReport());
 
-        // Mise en page
         VBox layout = new VBox(10);
-        layout.getChildren().addAll(startButton, stopButton, generateReportButton, barChart, recurrentPacketsTable, suspiciousPacketsTable);
+        layout.getChildren().addAll(buttonBox, barChart, recurrentPacketsListView, suspiciousPacketsListView);
 
-        // Configuration de la scène
-        Scene scene = new Scene(layout, 800, 600);
+        Scene scene = new Scene(layout, 900, 700);
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         primaryStage.setTitle("Traffic Capture with Analysis Dashboard");
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // Assurez-vous de fermer la connexion à la base de données lorsque l'application se termine
         primaryStage.setOnCloseRequest(event -> DatabaseManager.closeConnection());
     }
 
-    private void setupTables() {
-        recurrentPacketsTable = new TableView<>();
-        suspiciousPacketsTable = new TableView<>();
-
-        // Colonnes pour les paquets récurrents
-        TableColumn<PacketEntity, String> sourceIpColumn = new TableColumn<>("Source IP");
-        sourceIpColumn.setCellValueFactory(new PropertyValueFactory<>("sourceIp"));
-
-        TableColumn<PacketEntity, String> destinationIpColumn = new TableColumn<>("Destination IP");
-        destinationIpColumn.setCellValueFactory(new PropertyValueFactory<>("destinationIp"));
-
-        TableColumn<PacketEntity, Integer> packetCountColumn = new TableColumn<>("Packet Count");
-        packetCountColumn.setCellValueFactory(new PropertyValueFactory<>("packetSize")); // Utilisé pour afficher le nombre de paquets
-
-        recurrentPacketsTable.getColumns().addAll(sourceIpColumn, destinationIpColumn, packetCountColumn);
-
-        // Colonnes pour les paquets suspects
-        TableColumn<ThreatEntity, String> threatLevelColumn = new TableColumn<>("Threat Level");
-        threatLevelColumn.setCellValueFactory(new PropertyValueFactory<>("threatLevel"));
-
-        suspiciousPacketsTable.getColumns().add(threatLevelColumn);
+    private void setupLists() {
+        recurrentPacketsListView = new ListView<>();
+        suspiciousPacketsListView = new ListView<>();
     }
 
     private void startRealTimeUpdates() {
         new Thread(() -> {
             while (trafficCaptureService.isCapturing()) {
                 Platform.runLater(() -> {
-                    updateGraph();
-                    updateTables();
+                    updateGraph(); // Met à jour le graphique
+                    updateLists(); // Met à jour les listes
                 });
                 try {
                     Thread.sleep(1000); // Mise à jour toutes les secondes
@@ -171,11 +154,23 @@ public class Main extends Application {
         series.getData().get(4).setYValue(trafficCaptureService.getTotalDataSize() / 1024); // Convertir en KB
     }
 
-    private void updateTables() {
-        List<PacketEntity> recurrentPackets = trafficAnalysisService.getRecurrentPackets();
-        List<ThreatEntity> suspiciousPackets = trafficAnalysisService.getThreats();
-        recurrentPacketsTable.getItems().setAll(recurrentPackets);
-        suspiciousPacketsTable.getItems().setAll(suspiciousPackets);
+    private void updateLists() {
+        recurrentPacketsList = trafficAnalysisService.getRecurrentPackets(currentLogId);
+        suspiciousPacketsList = trafficAnalysisService.getThreatsByLogId(currentLogId);
+
+        if (recurrentPacketsList != null) {
+            recurrentPacketsListView.getItems().clear();
+            recurrentPacketsListView.getItems().addAll(recurrentPacketsList);
+        } else {
+            recurrentPacketsListView.getItems().clear();
+        }
+
+        if (suspiciousPacketsList != null) {
+            suspiciousPacketsListView.getItems().clear();
+            suspiciousPacketsListView.getItems().addAll(suspiciousPacketsList);
+        } else {
+            suspiciousPacketsListView.getItems().clear();
+        }
     }
 
     private void generateReport() {
@@ -188,16 +183,14 @@ public class Main extends Application {
             return;
         }
 
-        List<PacketEntity> recurrentPackets = recurrentPacketsTable.getItems();
-        List<ThreatEntity> suspiciousPackets = suspiciousPacketsTable.getItems();
+        List<PacketEntity> recurrentPackets = recurrentPacketsListView.getItems();
+        List<ThreatEntity> suspiciousPackets = suspiciousPacketsListView.getItems();
 
+        String reportFileName = "traffic_report_" + currentLogTimestamp.toString().replace(":", "-") + ".pdf";
         PDFReportService reportService = new PDFReportService();
-        reportService.generateReportWithGraph("traffic_report.pdf", recurrentPackets, suspiciousPackets, graphFile);
+        reportService.generateReportWithGraph(reportFileName, trafficCaptureService.getTotalPacketsCaptured(), recurrentPackets, suspiciousPackets, graphFile);
     }
 
-    /**
-     * Converts a WritableImage to a BufferedImage for saving purposes.
-     */
     private java.awt.image.BufferedImage toBufferedImage(WritableImage img) {
         int width = (int) img.getWidth();
         int height = (int) img.getHeight();

@@ -198,6 +198,7 @@ public class TrafficCaptureService {
         }
     }
 
+
     public boolean isCapturing() {
         return capturing;
     }
